@@ -1,0 +1,12 @@
+docs/images/*.drawio
+
+.DS_Store
+
+*.idea
+*.egg-info
+dist.*
+.coverage
+coverage.xml
+.tox
+*.py[co]
+__pycache__

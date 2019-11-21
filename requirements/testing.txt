@@ -1,0 +1,4 @@
+pysparkling
+psycopg2-binary
+-e /usr/local/lib/jobs
+-e /opt/spark/python

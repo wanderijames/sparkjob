@@ -1,0 +1,33 @@
+version: '3'
+services:
+  livy:
+    container_name: livy_xyz
+    build:
+      dockerfile: ./docker/spark/Dockerfile
+      context: .
+    command: /opt/livy/bin/livy-server
+    ports:
+      - "8998:8998"
+      - "4040-4050:4040-4050"
+    volumes:
+      - .:/usr/local/lib/jobs
+      - ./docker/spark/log4j.properties:/opt/livy/conf/log4j.properties
+  airflow_web:
+    container_name: airflow_web_xyz
+    build:
+      dockerfile: ./docker/airflow/Dockerfile
+      context: .
+    image: airflow_xyz
+    environment:
+      LIVY_HOST: http://livy:8998
+      TESTING: "true"
+#      AIRFLOW__CORE__LOGGING_LEVEL: error
+#      AIRFLOW__CORE__FAB_LOGGING_LEVEL: error
+    command:
+    - "bash"
+    - "/bootstrap.sh"
+    ports:
+      - "8080:8080"
+    volumes:
+#    - ./airflow/contrib:/usr/local/lib/contrib
+#    - ./airflow/example_dag.py:/root/airflow/dags/example_dag.py
