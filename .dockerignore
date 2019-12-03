@@ -1,0 +1,6 @@
+docs
+.tox
+.ipynb_checkpoints
+data_source
+*.ipynb
+.idea

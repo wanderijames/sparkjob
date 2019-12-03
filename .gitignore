@@ -10,3 +10,6 @@ coverage.xml
 .tox
 *.py[co]
 __pycache__
+
+.ipynb_checkpoints
+data_source

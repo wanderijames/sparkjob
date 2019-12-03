@@ -1,0 +1,3 @@
+{
+  "drop_columns": ["id", "member_id", "pymnt_plan", "url", "emp_title", "emp_length"]
+}

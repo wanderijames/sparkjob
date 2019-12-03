@@ -11,7 +11,13 @@ RUN echo "*** Installing redshift drivers ***" \
     && wget https://s3.amazonaws.com/redshift-downloads/drivers/jdbc/1.2.36.1060/RedshiftJDBC42-no-awssdk-1.2.36.1060.jar \
     && mv RedshiftJDBC42-no-awssdk-1.2.36.1060.jar ${SPARK_HOME}/jars/RedshiftJDBC42-no-awssdk-1.2.36.1060.jar
 
+RUN apk add linux-headers zeromq-dev
+RUN pip install numpy pandas
+RUN pip install jupyter
+
 ADD . /usr/local/lib/jobs
 RUN ls /usr/local/lib/jobs \
     && pip install -e /usr/local/lib/jobs \
     && pip install tox
+
+EXPOSE 8888

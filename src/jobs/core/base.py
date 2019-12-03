@@ -4,6 +4,7 @@ Provides common functionalities for other jobs.
 """
 # pylint:disable=too-few-public-methods
 from abc import abstractmethod
+from time import time
 
 
 class Singleton(type):
@@ -39,16 +40,47 @@ class JobHolder(type):
 class BaseRegistry(metaclass=JobHolder):
     """Inherit this to register your job"""
     abstract = True
+    execution_time: float = 0.000
 
     @abstractmethod
     def _execute(self):
         """Job logic"""
         raise NotImplementedError
 
+    def side_effect(self):
+        """Any processes that works on artifacts
+
+        artifacts could be:
+        - metrics
+        - pickled model
+        """
+        raise NotImplementedError
+
+    def execute(self):
+        """Execute entrypoint"""
+        return self._execute()
+
+    def get_metrics(self):
+        """Collect metrics in `self`.`metrics`"""
+        metrics = getattr(self, "metrics", {})
+        if self.execution_time != 0.0000:
+            metrics["execution_time"] = self.execution_time
+        return metrics
+
     # Use this entrypoint for monitoring
     # Collect metrics such as execution_time and results.
     # Such metrics can be used for anomaly detection
     # one way to collect metris is by use of a python decorator
-    def execute(self):
-        """Execute entrypoint"""
-        return self._execute()
+    def execute_extra(self):
+        """Execute entrypoint
+
+        # An example
+        >>> job = BaseRegistry()
+        >>> [_ for _ in obj.execute_extra()]
+
+
+        """
+        start_time = float(time())
+        yield self.execute()
+        self.execution_time = time() - start_time
+        self.side_effect()

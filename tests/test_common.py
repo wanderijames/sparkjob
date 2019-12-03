@@ -68,6 +68,24 @@ class CommonTest(unittest.TestCase):
                     )
                 )
 
+    def test_base_extra_abstract(self):
+
+        A = type("A", (BaseRegistry,), {})
+        obj = A()
+        setattr(obj, "_execute", lambda: "")
+        with self.assertRaises(NotImplementedError):
+            [res for res in obj.execute_extra()]
+
+    def test_base_extra(self):
+
+        A = type("A", (BaseRegistry,), {})
+        obj = A()
+        setattr(obj, "_execute", lambda: "")
+        setattr(obj, "side_effect", lambda: "")
+        results = [res for res in obj.execute_extra()]
+        self.assertEqual(results[0], "")
+        self.assertTrue(obj.execution_time > 0.0000)
+
     def test_singleton(self):
         class A(metaclass=Singleton):
             """"""

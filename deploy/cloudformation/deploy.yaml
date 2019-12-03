@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creating a spark pipeline
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  CIDRRange:
+    Description: Allow inbound traffic to the cluster from this CIDR range.
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
+  RedshiftPortNumber:
+    Description: The port number on which the cluster accepts incoming connections.
+    Type: Number
+    Default: '5432'
+
+Resources:
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/network.stack.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        CIDRRange: !Ref CIDRRange
+
+  RedshiftStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/redshift.stack.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        PublicSubnet: !GetAtt [NetworkStack, Outputs.PublicSubnetOne]
+        VPC: !GetAtt [NetworkStack, Outputs.VPCId]
+        InboundTraffic: !Ref CIDRRange
+
+  ECSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "stacks/ecs.stack.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        LoadBalancerSG: !GetAtt [NetworkStack, Outputs.PublicLoadBalancerSG]
+        VPC: !GetAtt [NetworkStack, Outputs.VPCId]
+        PublicLoadBalancer: !GetAtt [NetworkStack, Outputs.PublicLoadBalancer]
+        PublicSubnetOne: !GetAtt [NetworkStack, Outputs.PublicSubnetOne]
+        PublicSubnetTwo: !GetAtt [NetworkStack, Outputs.PublicSubnetTwo]
+        DBHost: !GetAtt [RedshiftStack, Outputs.ClusterEndpoint]
+
+
+Outputs:
+  VPCId:
+    Description: The ID of the VPC that this stack is deployed in
+    Value: !GetAtt [NetworkStack, Outputs.VPCId]
+  LoadBalancerExternalUrl:
+    Description: The url of the external load balancer
+    Value: !GetAtt [NetworkStack, Outputs.ExternalUrl]
+  RedshiftEndpoint:
+    Description: DB Host
+    Value: !GetAtt [RedshiftStack, Outputs.ClusterEndpoint]
+  ECSClusterName:
+    Description: The name of the ECS cluster
+    Value: !GetAtt [ECSStack, Outputs.ClusterName]
+  ECSRole:
+    Description: The ARN of the ECS role
+    Value: !GetAtt [ECSStack, Outputs.ECSRole]
+  ECSTaskExecutionRole:
+    Description: The ARN of the ECS role
+    Value: !GetAtt [ECSStack, Outputs.ECSTaskExecutionRole]
+  ECSFargateContainerSecurityGroup:
+    Description: A security group used to allow Fargate containers to receive traffic
+    Value: !GetAtt [ECSStack, Outputs.FargateContainerSecurityGroup]
+  ECSSparkLivyTaskDefinition:
+    Description: Fargate task definition
+    Value: !GetAtt [ECSStack, Outputs.SparkLivyTaskDefinition]
+  PublicSubnet:
+    Description: Subnet to be used by our fargate task
+    Value: !GetAtt [NetworkStack, Outputs.PublicSubnetOne]
