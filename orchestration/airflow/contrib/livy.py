@@ -24,6 +24,9 @@ import time
 import requests
 from requests.exceptions import ConnectionError, HTTPError
 
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger()
+
 
 LIVY_HOST = os.environ.get("LIVY_HOST", "http://localhost:8998")
 REQ_HEADERS = {'Content-Type': 'application/json'}
@@ -38,9 +41,25 @@ from jobs.core.base import JobHolder
         
 Job = JobHolder.get_registry()['{job_key_in_registry}']
 job = Job({job_args_kwargs})
-result = job.execute()
+results = [res for re in job.execute_extra()]
+result = results[0]
 print(result)
 """
+
+SAMPLE_JOBS = {
+    "LoadCSV": {
+        "filename": lambda filename: filename},
+    "GetTrainingData": {
+        "previous_job_temp_table": lambda table: table},
+    "DropNullAndDuplicateRow": {
+        "previous_job_temp_table": lambda table: table},
+    "DropNullColumns": {
+        "previous_job_temp_table": lambda table: table},
+    "SetTrainingData": {
+        "previous_job_temp_table": lambda table: table},
+    "BenchmarkModel": {
+        "previous_job_temp_table": lambda table: table}
+}
 
 
 class SparkAppError(Exception):
@@ -202,18 +221,11 @@ class AirflowDagCallable:
         """
         sess_id, sess_url = start_session()
         kwargs['ti'].xcom_push(key="sess_url", value=sess_url)
-
-    @staticmethod
-    def check_livy_status(**kwargs):
-        """Check if livy session is ready to get our code statements"""
-        status = check_job(
-            kwargs['ti'].xcom_pull(key="sess_url", task_ids='init_session'))
-        logging.info("Session status %s", status)
-        if status != "idle":
+        status = check_job(sess_url)
+        while status != "idle":
+            logging.info("Session status %s", status)
             time.sleep(5)
-            return "livy_status"
-        else:
-            return "ReactivationPullRecord"
+            status = check_job(sess_url)
 
     @staticmethod
     def execute_statement(**kwargs):
@@ -255,19 +267,10 @@ if __name__ == '__main__':
     import sys
 
     parser = argparse.ArgumentParser(
-        description='Runs demo pipeline. Run `reactivation` or `cancellation`')
-    parser.add_argument(
-        "-p",
-        "--pipeline",
-        default="reactivation",
-        help="[reactivation|cancellation]"
-    )
-    pipelines = {
-        "reactivation": ("ReactivationPullRecord", "ReactivationUpdateDWH"),
-        "cancellation": ("CancellationPullRecord", "CancellationUpdateDWH")
-    }
+        description='Runs demo pipeline.')
     args = parser.parse_args()
-    pipeline = pipelines[args.pipeline.lower()]
+
+    tasks = SAMPLE_JOBS.keys()
 
     try:
         sess_id, sess_url = start_session()
@@ -284,28 +287,14 @@ if __name__ == '__main__':
 
         print("-----------------")
         print("Job {1}")
-        print("Running: {}".format(pipeline[0]))
+        print("Running: {}".format(tasks[0]))
         print("-----------------\n")
-        pull_job = execute_job_output(
-            pipeline[0],
+        job1 = execute_job_output(
+            tasks[0],
             sess_url,
-            days=30,
-            date="'2019-09-30'"
+            filename="../data_source/lending-club-loan-data/loan.csv.gz"
         )
-        print("Job {1} result: ", pull_job)
-        print("=================\n")
-
-        print("-----------------")
-        print("Job {2}")
-        print("Running: {}".format(pipeline[1]))
-        print("-----------------\n")
-        to_egress_job = execute_job_output(
-            pipeline[1],
-            sess_url,
-            days=30,
-            date="'2019-08-30'"
-        )
-        print("Job {2} result: ", to_egress_job)
+        print("Job {1} result: ", job1)
         print("=================\n")
 
     except SparkAppError as serr:
